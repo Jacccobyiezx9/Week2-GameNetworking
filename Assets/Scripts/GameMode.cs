@@ -3,11 +3,13 @@ using Fusion;
 
 public class NetworkPlayer : NetworkBehaviour
 {
+    
     [SerializeField] private MeshRenderer m_MeshRenderer;
 
     [Header("Networked Properties")]
     [Networked] public Vector3 NetworkedPosition { get; set; }
     [Networked] public Color PlayerColor { get; set; }
+    [Networked] public NetworkString<_32> PlayerName { get; set; }
     #region Fusion Callbacks
 
     //Initialization Logic (New Start/Awake)
@@ -63,6 +65,15 @@ public class NetworkPlayer : NetworkBehaviour
         {
             this.PlayerColor = color;
         }
+            
+    }private void RPC_SetPlayerName(string color)
+    {
+        if (HasStateAuthority)
+        {
+            this.PlayerName = color;
+        }
+
+        //this.PlayerName = PlayerName.ToString();
             
     }
     #endregion
