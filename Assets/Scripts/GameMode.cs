@@ -1,10 +1,14 @@
 using UnityEngine;
 using Fusion;
+using TMPro;
 
 public class NetworkPlayer : NetworkBehaviour
 {
     
     [SerializeField] private MeshRenderer m_MeshRenderer;
+    [SerializeField] public TextMeshProUGUI nameText;
+    [SerializeField] private float moveSpeed = 5f;
+    [SerializeField] private float rotationSpeed = 10f;
 
     [Header("Networked Properties")]
     [Networked] public Vector3 NetworkedPosition { get; set; }
@@ -15,14 +19,26 @@ public class NetworkPlayer : NetworkBehaviour
     //Initialization Logic (New Start/Awake)
     public override void Spawned()
     {
+
         if (HasInputAuthority) //client
         {
+            Transform cameraSpot = transform.Find("CameraSpot");
+            if (cameraSpot != null)
+            {
+                Camera.main.transform.SetParent(cameraSpot);
+                Camera.main.transform.localPosition = Vector3.zero;
+                Camera.main.transform.localRotation = Quaternion.identity;
+            }
 
+            var manager = FindAnyObjectByType<NetworkManager>();
+            RPC_SetPlayerName(manager.playerName);
+            RPC_SetPlayerColor(manager.playerColor);
         }
 
         if (HasStateAuthority) //server
         {
-            PlayerColor = Random.ColorHSV();
+            NetworkedPosition += new Vector3(0, 1f, 0);
+            transform.position = NetworkedPosition;
         }
     }
 
@@ -33,18 +49,24 @@ public class NetworkPlayer : NetworkBehaviour
     }
 
     //Update
+    
+
     public override void FixedUpdateNetwork()
     {
         if (!HasStateAuthority) return;
-        if(GetInput(out NetworkInputData input))
-        {
-            this.transform.position += 
-                new Vector3(input.InputVector.normalized.x, input.InputVector.normalized.y)
-                * Runner.DeltaTime;
 
-            NetworkedPosition = this.transform.position;
+        if (GetInput(out NetworkInputData input))
+        {
+            if (input.InputVector != Vector3.zero)
+            {
+                transform.position += input.InputVector * moveSpeed * Runner.DeltaTime;
+ 
+            }
+
+            NetworkedPosition = transform.position;
         }
     }
+
 
     //Happens after FixedUpdateNetwork, for non server objects
     public override void Render()
@@ -54,9 +76,14 @@ public class NetworkPlayer : NetworkBehaviour
         {
             m_MeshRenderer.material.color = PlayerColor;
         }
-            
-    }
 
+        if (nameText != null)
+        {
+            nameText.text = PlayerName.ToString();
+            nameText.transform.rotation = Quaternion.LookRotation(nameText.transform.position - Camera.main.transform.position);
+        }
+
+    }
 
     [Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)] 
     private void RPC_SetPlayerColor(Color color)
@@ -66,28 +93,29 @@ public class NetworkPlayer : NetworkBehaviour
             this.PlayerColor = color;
         }
             
-    }private void RPC_SetPlayerName(string color)
+    }
+
+    [Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
+    private void RPC_SetPlayerName(string name)
     {
         if (HasStateAuthority)
         {
-            this.PlayerName = color;
+            this.PlayerName = name;
         }
-
-        //this.PlayerName = PlayerName.ToString();
             
     }
     #endregion
 
 
     #region UnityCallbacks
-    private void Update()
-    {
-        if (!HasInputAuthority) return;
-        if (Input.GetKeyDown(KeyCode.Q))
-        {
-            var randColor = Random.ColorHSV();
-            RPC_SetPlayerColor(randColor);
-        }
-    }
+    //private void Update()
+    //{
+    //    if (!HasInputAuthority) return;
+    //    if (Input.GetKeyDown(KeyCode.Q))
+    //    {
+    //        var randColor = Random.ColorHSV();
+    //        RPC_SetPlayerColor(randColor);
+    //    }
+    //}
     #endregion
 }

@@ -3,5 +3,5 @@ using Fusion;
 
 public struct NetworkInputData : INetworkInput
 {
-    public Vector2 InputVector;
+    public Vector3 InputVector;
 }
