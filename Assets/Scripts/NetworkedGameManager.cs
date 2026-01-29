@@ -3,10 +3,11 @@ using Fusion;
 using System.Collections.Generic;
 using TMPro;
 using System.Linq;
+using System.Collections;
 
 public class NetworkedGameManager : NetworkBehaviour
 {
-    private Dictionary<PlayerRef, NetworkObject> _spawnedCharacters = null;
+    private Dictionary<PlayerRef, NetworkObject> _spawnedCharacters = new();
     private NetworkSessionManager networkSessionManager;
     [SerializeField] private NetworkPrefabRef playerPrefab;
 
@@ -14,6 +15,8 @@ public class NetworkedGameManager : NetworkBehaviour
     private int timerBeforeStart = 3;
     [SerializeField] private TextMeshProUGUI timerText;
     [SerializeField] private TextMeshProUGUI playerCountText;
+
+    [Networked] public TickTimer RoundStartTimer { get; set; }
 
     private void Awake()
     {
@@ -35,8 +38,22 @@ public class NetworkedGameManager : NetworkBehaviour
 
     public override void FixedUpdateNetwork()
     {
-        
+
         playerCountText.text = $"Players: {Object.Runner.ActivePlayers.Count()}/{maxPlayers}";
+
+        if (RoundStartTimer.IsRunning)
+        {
+            timerText.text = RoundStartTimer.RemainingTime(Object.Runner).ToString();
+        }
+        else
+        {
+            timerText.text = " ";
+        }
+
+        if (RoundStartTimer.Expired(Object.Runner))
+        {
+            OnGameStarted();
+        }
     }
 
     public override void Render()
@@ -47,13 +64,13 @@ public class NetworkedGameManager : NetworkBehaviour
     private void OnPlayerJoined(PlayerRef player)
     {
         if (!HasStateAuthority) return;
-        if (networkSessionManager.JoinedPlayers.Count >= maxPlayers)
+        if (NetworkSessionManager.Instance.JoinedPlayers.Count >= maxPlayers)
         {
-            // Game Logic
-            OnGameStarted();
+            // Start game countdown then spawn
+            RoundStartTimer = TickTimer.CreateFromSeconds(Object.Runner, timerBeforeStart);
         }
         Debug.Log($"Player{player.PlayerId} joined");
-        
+
     }
     private void OnPlayerLeft(PlayerRef player)
     {
@@ -66,10 +83,19 @@ public class NetworkedGameManager : NetworkBehaviour
     private void OnGameStarted()
     {
         Debug.Log("Game Started");
-        foreach(var player in networkSessionManager.JoinedPlayers)
+        StartCoroutine(SpawnInSequence());
+    }
+
+    private IEnumerator SpawnInSequence()
+    {
+        foreach (var player in NetworkSessionManager.Instance.JoinedPlayers)
         {
+            yield return new WaitForSeconds(1f);
             var networkObj = Object.Runner.Spawn(playerPrefab, Vector3.zero, Quaternion.identity, player);
-            _spawnedCharacters.Add(player, networkObj);
+            if (networkObj != null)
+            {
+                _spawnedCharacters.Add(player, networkObj);
+            }
         }
     }
 }
