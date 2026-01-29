@@ -18,6 +18,8 @@ public class NetworkedGameManager : NetworkBehaviour
 
     [Networked] public TickTimer RoundStartTimer { get; set; }
 
+    private bool hasGameStarted = false;
+
     private void Awake()
     {
         networkSessionManager = GetComponent<NetworkSessionManager>();
@@ -50,9 +52,10 @@ public class NetworkedGameManager : NetworkBehaviour
             timerText.text = " ";
         }
 
-        if (RoundStartTimer.Expired(Object.Runner))
+        if (RoundStartTimer.Expired(Object.Runner) && !hasGameStarted)
         {
             OnGameStarted();
+            hasGameStarted = true;
         }
     }
 
