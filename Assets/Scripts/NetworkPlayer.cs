@@ -50,7 +50,7 @@ public class NetworkPlayer : NetworkBehaviour
 
         if (HasStateAuthority) //server
         {
-            NetworkedPosition += new Vector3(0, 1f, 0);
+            NetworkedPosition = new Vector3(0, 0, 0);
             transform.position = NetworkedPosition;
 
             PlayerAnimatorData = new NetworkAnimatorData()
